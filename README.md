@@ -102,3 +102,8 @@ poetry run pre-commit install
 ```
 
 Update README if needed
+
+## Run many block inspector for polygon
+```
+docker-compose exec mev-inspect python3 ./scripts/inspect_block.py inspect-many-blocks  19027346 19027746 http://18.166.70.205:8545 geth https://discord.com/api/webhooks/885111156005650452/cfaiDlqBkXXXXXXXXXX-m02tERJlFfWgXXXXXXXXXXX2plgfukIMq-XXXXXXXXXX4otj --no-cache > results
+```

@@ -46,7 +46,7 @@ class TraceType(Enum):
 
 class Trace(CamelModel):
     action: dict
-    block_hash: str
+    # block_hash: str
     block_number: int
     result: Optional[dict]
     subtraces: int

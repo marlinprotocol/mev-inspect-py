@@ -2,6 +2,7 @@ import json
 
 import click
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 
 from mev_inspect.arbitrages import get_arbitrages
 from mev_inspect.block import create_from_block_number
@@ -22,7 +23,7 @@ from mev_inspect.crud.swaps import delete_swaps_for_block, write_swaps
 from mev_inspect.db import get_session
 from mev_inspect.miner_payments import get_miner_payments
 from mev_inspect.swaps import get_swaps
-
+from discord_notif.discordwh import notify_discord
 
 @click.group()
 def cli():
@@ -32,25 +33,33 @@ def cli():
 @cli.command()
 @click.argument("block_number", type=int)
 @click.argument("rpc")
+@click.argument("nodetype")
+@click.argument("webhook")
 @click.option("--cache/--no-cache", default=True)
-def inspect_block(block_number: int, rpc: str, cache: bool):
+def inspect_block(block_number: int, rpc: str, cache: bool, nodetype: str, webhook: str):
     base_provider = Web3.HTTPProvider(rpc)
     w3 = Web3(base_provider)
+    if nodetype.lower() == "geth":
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     if not cache:
         click.echo("Skipping cache")
 
-    _inspect_block(base_provider, w3, block_number, should_cache=cache)
+    _inspect_block(base_provider, w3, block_number, should_cache=cache, nodetype=nodetype, webhook=webhook)
 
 
 @cli.command()
 @click.argument("after_block", type=int)
 @click.argument("before_block", type=int)
 @click.argument("rpc")
+@click.argument("nodetype")
+@click.argument("webhook")
 @click.option("--cache/--no-cache", default=True)
-def inspect_many_blocks(after_block: int, before_block: int, rpc: str, cache: bool):
+def inspect_many_blocks(after_block: int, before_block: int, rpc: str, cache: bool, nodetype: str, webhook: str):
     base_provider = Web3.HTTPProvider(rpc)
     w3 = Web3(base_provider)
+    if nodetype.lower() == "geth":
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     if not cache:
         click.echo("Skipping cache")
@@ -71,6 +80,8 @@ def inspect_many_blocks(after_block: int, before_block: int, rpc: str, cache: bo
             should_print_stats=False,
             should_write_classified_traces=False,
             should_cache=cache,
+            nodetype=nodetype,
+            webhook=webhook
         )
 
 
@@ -79,6 +90,8 @@ def _inspect_block(
     w3: Web3,
     block_number: int,
     should_cache: bool,
+    nodetype: str,
+    webhook: str,
     should_print_stats: bool = True,
     should_print_miner_payments: bool = True,
     should_write_classified_traces: bool = True,
@@ -86,9 +99,10 @@ def _inspect_block(
     should_write_arbitrages: bool = True,
     should_write_miner_payments: bool = True,
 ):
-    block = create_from_block_number(base_provider, w3, block_number, should_cache)
+    block = create_from_block_number(base_provider, w3, block_number, should_cache, nodetype)
 
     click.echo(f"Total traces: {len(block.traces)}")
+    click.echo(f"Total receipts: {len(block.receipts)}")
 
     total_transactions = len(
         set(t.transaction_hash for t in block.traces if t.transaction_hash is not None)
@@ -99,40 +113,43 @@ def _inspect_block(
     classified_traces = trace_clasifier.classify(block.traces)
     click.echo(f"Returned {len(classified_traces)} classified traces")
 
-    db_session = get_session()
+    # db_session = get_session()
 
-    if should_write_classified_traces:
-        delete_classified_traces_for_block(db_session, block_number)
-        write_classified_traces(db_session, classified_traces)
+    # if should_write_classified_traces:
+    #     delete_classified_traces_for_block(db_session, block_number)
+    #     write_classified_traces(db_session, classified_traces)
 
     swaps = get_swaps(classified_traces)
     click.echo(f"Found {len(swaps)} swaps")
 
-    if should_write_swaps:
-        delete_swaps_for_block(db_session, block_number)
-        write_swaps(db_session, swaps)
+    # if should_write_swaps:
+    #     delete_swaps_for_block(db_session, block_number)
+    #     write_swaps(db_session, swaps)
 
     arbitrages = get_arbitrages(swaps)
     click.echo(f"Found {len(arbitrages)} arbitrages")
 
-    if should_write_arbitrages:
-        delete_arbitrages_for_block(db_session, block_number)
-        write_arbitrages(db_session, arbitrages)
+    notify_discord(webhook, arbitrages)
+    # print("arbitrages", arbitrages)
 
-    if should_print_stats:
-        stats = get_stats(classified_traces)
-        click.echo(json.dumps(stats, indent=4))
+    # if should_write_arbitrages:
+    #     delete_arbitrages_for_block(db_session, block_number)
+    #     write_arbitrages(db_session, arbitrages)
 
-    miner_payments = get_miner_payments(
-        block.miner, block.base_fee_per_gas, classified_traces, block.receipts
-    )
+    # if should_print_stats:
+    #     stats = get_stats(classified_traces)
+    #     click.echo(json.dumps(stats, indent=4))
 
-    if should_print_miner_payments:
-        click.echo(json.dumps([p.dict() for p in miner_payments], indent=4))
+    # miner_payments = get_miner_payments(
+    #     block.miner, block.base_fee_per_gas, classified_traces, block.receipts
+    # )
 
-    if should_write_miner_payments:
-        delete_miner_payments_for_block(db_session, block_number)
-        write_miner_payments(db_session, miner_payments)
+    # if should_print_miner_payments:
+    #     click.echo(json.dumps([p.dict() for p in miner_payments], indent=4))
+
+    # if should_write_miner_payments:
+    #     delete_miner_payments_for_block(db_session, block_number)
+    #     write_miner_payments(db_session, miner_payments)
 
 
 def get_stats(classified_traces) -> dict:
