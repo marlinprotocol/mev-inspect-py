@@ -25,6 +25,7 @@ from mev_inspect.miner_payments import get_miner_payments
 from mev_inspect.swaps import get_swaps
 from discord_notif.discordwh import notify_discord
 
+
 @click.group()
 def cli():
     pass
@@ -36,7 +37,9 @@ def cli():
 @click.argument("nodetype")
 @click.argument("webhook")
 @click.option("--cache/--no-cache", default=True)
-def inspect_block(block_number: int, rpc: str, cache: bool, nodetype: str, webhook: str):
+def inspect_block(
+    block_number: int, rpc: str, cache: bool, nodetype: str, webhook: str
+):
     base_provider = Web3.HTTPProvider(rpc)
     w3 = Web3(base_provider)
     if nodetype.lower() == "geth":
@@ -45,7 +48,14 @@ def inspect_block(block_number: int, rpc: str, cache: bool, nodetype: str, webho
     if not cache:
         click.echo("Skipping cache")
 
-    _inspect_block(base_provider, w3, block_number, should_cache=cache, nodetype=nodetype, webhook=webhook)
+    _inspect_block(
+        base_provider,
+        w3,
+        block_number,
+        should_cache=cache,
+        nodetype=nodetype,
+        webhook=webhook,
+    )
 
 
 @cli.command()
@@ -55,7 +65,14 @@ def inspect_block(block_number: int, rpc: str, cache: bool, nodetype: str, webho
 @click.argument("nodetype")
 @click.argument("webhook")
 @click.option("--cache/--no-cache", default=True)
-def inspect_many_blocks(after_block: int, before_block: int, rpc: str, cache: bool, nodetype: str, webhook: str):
+def inspect_many_blocks(
+    after_block: int,
+    before_block: int,
+    rpc: str,
+    cache: bool,
+    nodetype: str,
+    webhook: str,
+):
     base_provider = Web3.HTTPProvider(rpc)
     w3 = Web3(base_provider)
     if nodetype.lower() == "geth":
@@ -81,7 +98,7 @@ def inspect_many_blocks(after_block: int, before_block: int, rpc: str, cache: bo
             should_write_classified_traces=False,
             should_cache=cache,
             nodetype=nodetype,
-            webhook=webhook
+            webhook=webhook,
         )
 
 
@@ -99,7 +116,9 @@ def _inspect_block(
     should_write_arbitrages: bool = True,
     should_write_miner_payments: bool = True,
 ):
-    block = create_from_block_number(base_provider, w3, block_number, should_cache, nodetype)
+    block = create_from_block_number(
+        base_provider, w3, block_number, should_cache, nodetype
+    )
 
     click.echo(f"Total traces: {len(block.traces)}")
     click.echo(f"Total receipts: {len(block.receipts)}")

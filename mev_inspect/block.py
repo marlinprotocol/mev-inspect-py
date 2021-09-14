@@ -35,25 +35,31 @@ def create_from_block_number(
 
         return block
 
+
 def fetch_block_geth(w3: Web3, base_provider, block_number: int) -> Block:
     block_json = w3.eth.get_block(block_number)
     # print("got block json ", block_json)
 
-    geth_tx_traces = geth_get_tx_traces(base_provider, block_json['transactions'])
-    geth_tx_receipts = geth_get_tx_receipts(base_provider, block_json['transactions'])
+    geth_tx_traces = geth_get_tx_traces(base_provider, block_json["transactions"])
+    geth_tx_receipts = geth_get_tx_receipts(base_provider, block_json["transactions"])
     print("Got geth traces and receipts", len(geth_tx_traces), len(geth_tx_receipts))
 
     parity_block_traces = geth_trace_translator(block_json, geth_tx_traces)
     parity_receipts = geth_receipts_translator(block_json, geth_tx_receipts)
-    print("Translated parity traces and receipts", len(parity_block_traces), len(parity_receipts))
+    print(
+        "Translated parity traces and receipts",
+        len(parity_block_traces),
+        len(parity_receipts),
+    )
 
     return Block(
         block_number=block_number,
-        miner=block_json["miner"], #TODO: Polygon miners are 0x000 ?
-        base_fee_per_gas=0, #TODO
-        traces = parity_block_traces,
+        miner=block_json["miner"],  # TODO: Polygon miners are 0x000 ?
+        base_fee_per_gas=0,  # TODO
+        traces=parity_block_traces,
         receipts=parity_receipts,
     )
+
 
 def fetch_block_parity(w3: Web3, base_provider, block_number: int) -> Block:
     block_json = w3.eth.get_block(block_number)
@@ -74,12 +80,13 @@ def fetch_block_parity(w3: Web3, base_provider, block_number: int) -> Block:
         receipts=receipts,
     )
 
+
 def fetch_block(w3, base_provider, block_number: int, nodetype: str) -> Block:
     if nodetype == "geth":
-        # print("fetching geth block")
         return fetch_block_geth(w3, base_provider, block_number)
     elif nodetype == "parity":
         return fetch_block_parity(w3, base_provider, block_number)
+    return Block()
 
 
 def get_transaction_hashes(calls: List[Trace]) -> List[str]:
