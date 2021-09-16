@@ -8,31 +8,25 @@ from mev_inspect.schemas.receipts import Receipt
 from typing import List
 
 
-async def _get_tx_trace(session, endpoint_uri, tx):
-    data = {
-        "jsonrpc": "2.0",
-        "id": "0",
-        "method": "debug_traceTransaction",
-        "params": [tx.hex(), {"tracer": "callTracer"}],
-    }
-    async with session.post(endpoint_uri, json=data) as response:
-        if response.status != 200:
-            response.raise_for_status()
-        return await response.text()
+# async def _get_tx_trace(session, endpoint_uri, tx):
+#     data = {
+#         "jsonrpc": "2.0",
+#         "id": "0",
+#         "method": "debug_traceTransaction",
+#         "params": [tx.hex(), {"tracer": "callTracer"}],
+#     }
+#     async with session.post(endpoint_uri, json=data) as response:
+#         if response.status != 200:
+#             response.raise_for_status()
+#         return await response.text()
 
 
-async def _geth_get_tx_traces(endpoint_uri, transactions):
+def _geth_get_tx_traces(base_provider, block_hash):
     print("getting tx traces")
     start = time.time()
-    geth_tx_traces = []
-    async with aiohttp.ClientSession() as session:
-        tasks = [
-            asyncio.create_task(_get_tx_trace(session, endpoint_uri, tx))
-            for tx in transactions
-        ]
-        geth_tx_traces = await asyncio.gather(*tasks)
+    block_trace = base_provider.make_request("debug_traceBlockByHash", [block_hash.hex(), {"tracer": "callTracer"}])
     print("getting tx traces done ", time.time() - start)
-    return [json.loads(tx_trace) for tx_trace in geth_tx_traces]
+    return block_trace
 
 
 _calltype_mapping = {
@@ -76,8 +70,8 @@ def _unwrap_tx_trace_for_parity(
             )
         )
     except Exception as e:
-        # print("err")
-        print("error while decoding trace", tx_trace, e)
+        print("errdectrace")
+        # print("error while decoding trace", tx_trace, e)
         return []
 
     # print("got trace ", base_trace.action)
@@ -94,8 +88,15 @@ def _unwrap_tx_trace_for_parity(
     return response_list
 
 
-def geth_get_tx_traces(base_provider, transactions):
-    return asyncio.run(_geth_get_tx_traces(base_provider.endpoint_uri, transactions))
+def geth_get_tx_traces_parity_format(base_provider, block_json):
+    block_hash = block_json['hash']
+    block_trace = _geth_get_tx_traces(base_provider, block_hash)
+    parity_traces = []
+    for idx, trace in enumerate(block_trace['result']):
+        if 'result' in trace:
+            parity_traces.extend(_unwrap_tx_trace_for_parity(block_json, idx, trace['result']))
+    return parity_traces
+    # return asyncio.run(_geth_get_tx_traces(base_provider.endpoint_uri, transactions))
 
 
 async def _get_tx_receipts(session, endpoint_uri, tx):

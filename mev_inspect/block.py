@@ -5,7 +5,7 @@ from mev_inspect.schemas import receipts
 from web3 import Web3
 
 from mev_inspect.fees import fetch_base_fee_per_gas
-from mev_inspect.geth import geth_get_tx_traces, geth_trace_translator
+from mev_inspect.geth import geth_get_tx_traces_parity_format
 from mev_inspect.geth import geth_get_tx_receipts, geth_receipts_translator
 from mev_inspect.schemas import Block, Trace, TraceType
 from mev_inspect.schemas.receipts import Receipt
@@ -40,11 +40,11 @@ def fetch_block_geth(w3: Web3, base_provider, block_number: int) -> Block:
     block_json = w3.eth.get_block(block_number)
     # print("got block json ", block_json)
 
-    geth_tx_traces = geth_get_tx_traces(base_provider, block_json["transactions"])
+    parity_block_traces = geth_get_tx_traces_parity_format(base_provider, block_json)
     geth_tx_receipts = geth_get_tx_receipts(base_provider, block_json["transactions"])
-    print("Got geth traces and receipts", len(geth_tx_traces), len(geth_tx_receipts))
+    # print("Got geth traces and receipts", len(geth_tx_traces), len(geth_tx_receipts))
 
-    parity_block_traces = geth_trace_translator(block_json, geth_tx_traces)
+    # parity_block_traces = geth_trace_translator(block_json, geth_tx_traces)
     parity_receipts = geth_receipts_translator(block_json, geth_tx_receipts)
     print(
         "Translated parity traces and receipts",
