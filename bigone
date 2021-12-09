@@ -1,0 +1,98 @@
+Skipping virtualenv creation, as specified in config file.
+getting log traces
+getting log traces done  9.143722295761108 3
+fetching...
+getting custom traces
+new way of requesting
+getting custom traces done  7.130518913269043 3
+INFO:mev_inspect.inspect_block:Found 3 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 4 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 4 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+<Response [200]>
+{"message":"success"}
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 5 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+fetching...
+getting custom traces
+new way of requesting
+getting custom traces done  3.8023030757904053 3
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+<Response [200]>
+{"message":"success"}
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+<Response [200]>
+{"message":"success"}
+INFO:mev_inspect.inspect_block:Found 1 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 2 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+INFO:mev_inspect.inspect_block:Found 0 arbitrages
+fetching...

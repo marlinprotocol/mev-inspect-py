@@ -1,11 +1,11 @@
-from typing import List
+from enum import Enum
+from typing import List, Optional
 
 from pydantic import validator
 
 from mev_inspect.utils import hex_to_int
 
 from .receipts import Receipt
-from .traces import Trace
 from .utils import CamelModel, Web3Model
 
 
@@ -36,9 +36,29 @@ class CallAction(Web3Model):
         fields = {"from_": "from"}
 
 
+class TraceType(Enum):
+    call = "call"
+    create = "create"
+    delegate_call = "delegateCall"
+    reward = "reward"
+    suicide = "suicide"
+
+
+class Trace(CamelModel):
+    action: dict
+    block_hash: str
+    block_number: int
+    result: Optional[dict]
+    subtraces: int
+    trace_address: List[int]
+    transaction_hash: Optional[str]
+    transaction_position: Optional[int]
+    type: TraceType
+    error: Optional[str]
+
+
 class Block(Web3Model):
     block_number: int
-    block_timestamp: int
     miner: str
     base_fee_per_gas: int
     traces: List[Trace]

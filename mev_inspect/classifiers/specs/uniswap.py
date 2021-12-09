@@ -1,51 +1,8 @@
-from typing import Optional, List
-from mev_inspect.schemas.transfers import Transfer
-from mev_inspect.schemas.swaps import Swap
-from mev_inspect.schemas.traces import (
-    DecodedCallTrace,
+from mev_inspect.schemas.classified_traces import (
+    Classification,
+    ClassifierSpec,
     Protocol,
 )
-from mev_inspect.schemas.classifiers import (
-    ClassifierSpec,
-    SwapClassifier,
-)
-from mev_inspect.classifiers.helpers import create_swap_from_pool_transfers
-
-
-UNISWAP_V2_PAIR_ABI_NAME = "UniswapV2Pair"
-UNISWAP_V3_POOL_ABI_NAME = "UniswapV3Pool"
-
-
-class UniswapV3SwapClassifier(SwapClassifier):
-    @staticmethod
-    def parse_swap(
-        trace: DecodedCallTrace,
-        prior_transfers: List[Transfer],
-        child_transfers: List[Transfer],
-    ) -> Optional[Swap]:
-
-        recipient_address = trace.inputs.get("recipient", trace.from_address)
-
-        swap = create_swap_from_pool_transfers(
-            trace, recipient_address, prior_transfers, child_transfers
-        )
-        return swap
-
-
-class UniswapV2SwapClassifier(SwapClassifier):
-    @staticmethod
-    def parse_swap(
-        trace: DecodedCallTrace,
-        prior_transfers: List[Transfer],
-        child_transfers: List[Transfer],
-    ) -> Optional[Swap]:
-
-        recipient_address = trace.inputs.get("to", trace.from_address)
-
-        swap = create_swap_from_pool_transfers(
-            trace, recipient_address, prior_transfers, child_transfers
-        )
-        return swap
 
 
 UNISWAP_V3_CONTRACT_SPECS = [
@@ -108,9 +65,9 @@ UNISWAP_V3_CONTRACT_SPECS = [
 
 UNISWAP_V3_GENERAL_SPECS = [
     ClassifierSpec(
-        abi_name=UNISWAP_V3_POOL_ABI_NAME,
-        classifiers={
-            "swap(address,bool,int256,uint160,bytes)": UniswapV3SwapClassifier,
+        abi_name="UniswapV3Pool",
+        classifications={
+            "swap(address,bool,int256,uint160,bytes)": Classification.swap,
         },
     ),
     ClassifierSpec(
@@ -139,13 +96,13 @@ UNISWAPPY_V2_CONTRACT_SPECS = [
 ]
 
 UNISWAPPY_V2_PAIR_SPEC = ClassifierSpec(
-    abi_name=UNISWAP_V2_PAIR_ABI_NAME,
-    classifiers={
-        "swap(uint256,uint256,address,bytes)": UniswapV2SwapClassifier,
+    abi_name="UniswapV2Pair",
+    classifications={
+        "swap(uint256,uint256,address,bytes)": Classification.swap,
     },
 )
 
-UNISWAP_CLASSIFIER_SPECS: List = [
+UNISWAP_CLASSIFIER_SPECS = [
     *UNISWAP_V3_CONTRACT_SPECS,
     *UNISWAPPY_V2_CONTRACT_SPECS,
     *UNISWAP_V3_GENERAL_SPECS,

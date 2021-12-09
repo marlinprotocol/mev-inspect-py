@@ -1,0 +1,4 @@
+root@Ubuntu-2004-focal-64-minimal /mnt/maticnode/bor # sh start.sh
+root@Ubuntu-2004-focal-64-minimal /mnt/maticnode/heimdall # heimdalld start --home /mnt/maticnode/heimdall/hmd_home/
+root@Ubuntu-2004-focal-64-minimal /mnt/maticnode/heimdall # heimdalld rest-server --home /mnt/maticnode/heimdall/hmd_home/
+root@Ubuntu-2004-focal-64-minimal /mnt/mev-gateway # ./build/mev-gateway --spamcheckAddr "http://127.0.0.1:8545/"

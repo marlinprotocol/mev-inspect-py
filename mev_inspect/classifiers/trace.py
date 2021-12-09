@@ -2,14 +2,13 @@ from typing import Dict, List, Optional
 
 from mev_inspect.abi import get_abi
 from mev_inspect.decode import ABIDecoder
-from mev_inspect.schemas.blocks import CallAction, CallResult
-from mev_inspect.schemas.traces import (
+from mev_inspect.schemas.blocks import CallAction, CallResult, Trace, TraceType
+from mev_inspect.schemas.classified_traces import (
     Classification,
     ClassifiedTrace,
     CallTrace,
     DecodedCallTrace,
 )
-from mev_inspect.schemas.traces import Trace, TraceType
 
 from .specs import ALL_CLASSIFIER_SPECS
 
@@ -68,11 +67,8 @@ class TraceClassifier:
 
             if call_data is not None:
                 signature = call_data.function_signature
-                classifier = spec.classifiers.get(signature)
-                classification = (
-                    Classification.unknown
-                    if classifier is None
-                    else classifier.get_classification()
+                classification = spec.classifications.get(
+                    signature, Classification.unknown
                 )
 
                 return DecodedCallTrace(

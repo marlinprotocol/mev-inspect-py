@@ -1,0 +1,481 @@
+diff --git a/cli.py b/cli.py
+index c112aa0..f751659 100644
+--- a/cli.py
++++ b/cli.py
+@@ -4,6 +4,7 @@ import sys
+ 
+ import click
+ from web3 import Web3
++from web3.middleware import geth_poa_middleware
+ 
+ from mev_inspect.db import get_session
+ from mev_inspect.inspect_block import inspect_block
+@@ -29,6 +30,8 @@ def inspect_block_command(block_number: int, rpc: str, cache: bool):
+     db_session = get_session()
+     base_provider = get_base_provider(rpc)
+     w3 = Web3(base_provider)
++    # GETH addition
++    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+ 
+     if not cache:
+         logger.info("Skipping cache")
+@@ -48,6 +51,8 @@ def inspect_many_blocks_command(
+     db_session = get_session()
+     base_provider = get_base_provider(rpc)
+     w3 = Web3(base_provider)
++    # GETH addition
++    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+ 
+     if not cache:
+         logger.info("Skipping cache")
+diff --git a/listener.py b/listener.py
+index 1ce3123..b7a1f00 100644
+--- a/listener.py
++++ b/listener.py
+@@ -3,6 +3,7 @@ import os
+ import time
+ 
+ from web3 import Web3
++from web3.middleware import geth_poa_middleware
+ 
+ from mev_inspect.block import get_latest_block_number
+ from mev_inspect.crud.latest_block_update import (
+@@ -28,38 +29,62 @@ def run():
+ 
+     killer = GracefulKiller()
+ 
+-    db_session = get_session()
++    # logger.info("we are here")
++
++    # db_session = get_session()
+     base_provider = get_base_provider(rpc)
+     w3 = Web3(base_provider)
++    # GETH addition
++    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
++
++    # logger.info("here2")
+ 
+     latest_block_number = get_latest_block_number(w3)
++    # logger.info("got the latest block")
++    last = 0
+ 
+     while not killer.kill_now:
+-        last_written_block = find_latest_block_update(db_session)
+-        logger.info(f"Latest block: {latest_block_number}")
+-        logger.info(f"Last written block: {last_written_block}")
+-
+-        if last_written_block is None or last_written_block < latest_block_number:
+-            block_number = (
+-                latest_block_number
+-                if last_written_block is None
+-                else last_written_block + 1
+-            )
+-
+-            logger.info(f"Writing block: {block_number}")
+-
+-            inspect_block(
+-                db_session,
++        if latest_block_number == last:
++            time.sleep(1)
++            latest_block_number = get_latest_block_number(w3)
++            continue
++        # logger.info("inspection starts")
++        logger.info("inspecting ", latest_block_number)
++        inspect_block(
++                None,
+                 base_provider,
+                 w3,
+-                block_number,
++                latest_block_number,
+                 should_write_classified_traces=False,
+                 should_cache=False,
+-            )
+-            update_latest_block(db_session, block_number)
+-        else:
+-            time.sleep(5)
+-            latest_block_number = get_latest_block_number(w3)
++        )
++        last = latest_block_number
++        latest_block_number = get_latest_block_number(w3)
++        # last_written_block = find_latest_block_update(db_session)
++        # logger.info(f"Latest block: {latest_block_number}")
++        # logger.info(f"Last written block: {last_written_block}")
++
++        # if last_written_block is None or last_written_block < latest_block_number:
++        #     block_number = (
++        #         latest_block_number
++        #         if last_written_block is None
++        #         else last_written_block + 1
++        #     )
++
++        #     logger.info(f"Writing block: {block_number}")
++
++        #     inspect_block(
++        #         db_session,
++        #         base_provider,
++        #         w3,
++        #         block_number,
++        #         should_write_classified_traces=False,
++        #         should_cache=False,
++        #     )
++        #     update_latest_block(db_session, block_number)
++        # else:
++            # time.sleep(1)
++            # latest_block_number = get_latest_block_number(w3)
+ 
+     logger.info("Stopping...")
+ 
+diff --git a/mev_inspect/block.py b/mev_inspect/block.py
+index 1b974e4..08a2cc8 100644
+--- a/mev_inspect/block.py
++++ b/mev_inspect/block.py
+@@ -1,5 +1,8 @@
+ from pathlib import Path
+ from typing import List
++import asyncio, aiohttp
++import time
++import json
+ 
+ from web3 import Web3
+ 
+@@ -37,25 +40,191 @@ def create_from_block_number(
+         return block
+ 
+ 
++def _geth_get_tx_traces(base_provider, block_hash):
++    print("getting tx traces")
++    start = time.time()
++    block_trace = base_provider.make_request("debug_traceBlockByHash", [block_hash.hex(), {"tracer": "callTracer"}])
++    print("getting tx traces done ", time.time() - start, len(block_trace))
++    return block_trace
++
++
++def _unwrap_tx_trace_for_parity(
++    block_json, tx_pos_in_block, tx_trace, position=[]
++) -> List[Trace]:
++    response_list = []
++    _calltype_mapping = {
++        "CALL": "call",
++        "DELEGATECALL": "delegateCall",
++        "CREATE": "create",
++        "SUICIDE": "suicide",
++        "REWARD": "reward",
++    }
++    try:
++        if tx_trace["type"] == "STATICCALL":
++            return []
++        action_dict = dict()
++        action_dict["callType"] = _calltype_mapping[tx_trace["type"]]
++        if action_dict["callType"] == "call":
++            action_dict["value"] = tx_trace["value"]
++        for key in ["from", "to", "gas", "input"]:
++            action_dict[key] = tx_trace[key]
++
++        result_dict = dict()
++        for key in ["gasUsed", "output"]:
++            result_dict[key] = tx_trace[key]
++
++        response_list.append(
++            Trace(
++                action=action_dict,
++                block_hash = str(block_json['hash']),
++                block_number=int(block_json["number"]),
++                result=result_dict,
++                subtraces=len(tx_trace["calls"]) if "calls" in tx_trace.keys() else 0,
++                trace_address=position,
++                transaction_hash=block_json["transactions"][tx_pos_in_block].hex(),
++                transaction_position=tx_pos_in_block,
++                type=TraceType(_calltype_mapping[tx_trace["type"]]),
++            )
++        )
++    except Exception as e:
++        print("errdectrace ", e)
++        # print("error while decoding trace", tx_trace, e)
++        return []
++
++    # print("got trace ", base_trace.action)
++    # response_list = [base_trace]
++
++    if "calls" in tx_trace.keys():
++        for idx, subcall in enumerate(tx_trace["calls"]):
++            response_list.extend(
++                _unwrap_tx_trace_for_parity(
++                    block_json, tx_pos_in_block, subcall, position + [idx]
++                )
++            )
++    return response_list
++
++
++def geth_get_tx_traces_parity_format(base_provider, block_json):
++    block_hash = block_json['hash']
++    block_trace = _geth_get_tx_traces(base_provider, block_hash)
++    # print("geth_trace_len: ", len(block_trace)/1000)
++    # print("block number ", block_json['number'], "tx count ", len(block_json['transactions']), "full trace JSON len: ", len(json.dumps(block_trace))/1000, "K", block_trace)
++    parity_traces = []
++    for idx, trace in enumerate(block_trace['result']):
++        if 'result' in trace:
++            parity_traces.extend(_unwrap_tx_trace_for_parity(block_json, idx, trace['result']))
++    # print("full trace ", len(json.dumps(parity_traces)))
++    return parity_traces
++
++async def _get_tx_receipts(session, endpoint_uri, tx):
++    data = {
++        "jsonrpc": "2.0",
++        "id": "0",
++        "method": "eth_getTransactionReceipt",
++        "params": [tx.hex()],
++    }
++    async with session.post(endpoint_uri, json=data) as response:
++        if response.status != 200:
++            response.raise_for_status()
++        return await response.text()
++
++async def _geth_get_tx_receipts(endpoint_uri, transactions):
++    # print("getting tx traces")
++    start = time.time()
++    geth_tx_receipts = []
++    async with aiohttp.ClientSession() as session:
++        tasks = [
++            asyncio.create_task(_get_tx_receipts(session, endpoint_uri, tx))
++            for tx in transactions
++        ]
++        geth_tx_receipts = await asyncio.gather(*tasks)
++    print("getting tx receipts done ", time.time() - start)
++    return [json.loads(tx_receipts) for tx_receipts in geth_tx_receipts]
++
++def geth_get_tx_receipts(base_provider, transactions):
++    return asyncio.run(_geth_get_tx_receipts(base_provider.endpoint_uri, transactions))
++
++def _unwrap_tx_receipt_for_parity(block_json, tx_pos_in_block, tx_receipt) -> Receipt:
++    # base_trace = Trace
++    # receipt = Receipt
++    try:
++        if tx_pos_in_block != int(tx_receipt["transactionIndex"], 16):
++            print(
++                "Alert the position of transaction in block is mismatching ",
++                tx_pos_in_block,
++                tx_receipt["transactionIndex"],
++            )
++        return Receipt(
++            block_number=block_json["number"],
++            transaction_hash=tx_receipt["transactionHash"],
++            transaction_index=tx_pos_in_block,
++            gas_used=tx_receipt["gasUsed"],
++            effective_gas_price=tx_receipt["effectiveGasPrice"],
++            cumulative_gas_used=tx_receipt["cumulativeGasUsed"],
++            to=tx_receipt["to"],
++        )
++
++    except Exception as e:
++        print("error while decoding receipt", tx_receipt, e)
++
++    return Receipt()
++
++def geth_receipts_translator(block_json, geth_tx_receipts) -> List[Receipt]:
++    json_decoded_receipts = [
++        tx_receipt["result"]
++        if tx_receipt != None and ("result" in tx_receipt.keys())
++        else None
++        for tx_receipt in geth_tx_receipts
++    ]
++    results = []
++    for idx, tx_receipt in enumerate(json_decoded_receipts):
++        if tx_receipt != None:
++            results.append(_unwrap_tx_receipt_for_parity(block_json, idx, tx_receipt))
++    return results
++
+ def fetch_block(w3, base_provider, block_number: int) -> Block:
+     block_json = w3.eth.get_block(block_number)
+-    receipts_json = base_provider.make_request("eth_getBlockReceipts", [block_number])
+-    traces_json = w3.parity.trace_block(block_number)
+-
+-    receipts: List[Receipt] = [
+-        Receipt(**receipt) for receipt in receipts_json["result"]
+-    ]
+-    traces = [Trace(**trace_json) for trace_json in traces_json]
+-    base_fee_per_gas = fetch_base_fee_per_gas(w3, block_number)
++    # print("got block json ", block_json)
++
++    parity_block_traces = geth_get_tx_traces_parity_format(base_provider, block_json)
++    geth_tx_receipts = geth_get_tx_receipts(base_provider, block_json["transactions"])
++    # print("Got geth traces and receipts", len(geth_tx_traces), len(geth_tx_receipts))
++
++    # parity_block_traces = geth_trace_translator(block_json, geth_tx_traces)
++    parity_receipts = geth_receipts_translator(block_json, geth_tx_receipts)
++    print(
++        "Translated parity traces and receipts",
++        len(parity_block_traces),
++        len(parity_receipts),
++    )
+ 
+     return Block(
+         block_number=block_number,
+-        miner=block_json["miner"],
+-        base_fee_per_gas=base_fee_per_gas,
+-        traces=traces,
+-        receipts=receipts,
++        miner=block_json["miner"],  # TODO: Polygon miners are 0x000 ?
++        base_fee_per_gas=0,  # TODO
++        traces=parity_block_traces,
++        receipts=parity_receipts,
+     )
+ 
++# def fetch_block(w3, base_provider, block_number: int) -> Block:
++#     block_json = w3.eth.get_block(block_number)
++#     receipts_json = base_provider.make_request("eth_getBlockReceipts", [block_number])
++#     traces_json = w3.parity.trace_block(block_number)
++
++#     receipts: List[Receipt] = [
++#         Receipt(**receipt) for receipt in receipts_json["result"]
++#     ]
++#     traces = [Trace(**trace_json) for trace_json in traces_json]
++#     base_fee_per_gas = fetch_base_fee_per_gas(w3, block_number)
++
++#     return Block(
++#         block_number=block_number,
++#         miner=block_json["miner"],
++#         base_fee_per_gas=base_fee_per_gas,
++#         traces=traces,
++#         receipts=receipts,
++#     )
++
+ 
+ def get_transaction_hashes(calls: List[Trace]) -> List[str]:
+     result = []
+diff --git a/mev_inspect/inspect_block.py b/mev_inspect/inspect_block.py
+index 597e2db..d17c4a4 100644
+--- a/mev_inspect/inspect_block.py
++++ b/mev_inspect/inspect_block.py
+@@ -1,4 +1,6 @@
+ import logging
++import requests
++import json
+ 
+ from web3 import Web3
+ 
+@@ -59,40 +61,53 @@ def inspect_block(
+     classified_traces = trace_clasifier.classify(block.traces)
+     logger.info(f"Returned {len(classified_traces)} classified traces")
+ 
+-    if should_write_classified_traces:
+-        delete_classified_traces_for_block(db_session, block_number)
+-        write_classified_traces(db_session, classified_traces)
++    # if should_write_classified_traces:
++    #     delete_classified_traces_for_block(db_session, block_number)
++    #     write_classified_traces(db_session, classified_traces)
+ 
+     transfers = get_transfers(classified_traces)
+-    if should_write_transfers:
+-        delete_transfers_for_block(db_session, block_number)
+-        write_transfers(db_session, transfers)
++    # if should_write_transfers:
++    #     delete_transfers_for_block(db_session, block_number)
++    #     write_transfers(db_session, transfers)
+ 
+     swaps = get_swaps(classified_traces)
+     logger.info(f"Found {len(swaps)} swaps")
+ 
+-    if should_write_swaps:
+-        delete_swaps_for_block(db_session, block_number)
+-        write_swaps(db_session, swaps)
++    # if should_write_swaps:
++    #     delete_swaps_for_block(db_session, block_number)
++    #     write_swaps(db_session, swaps)
+ 
+     arbitrages = get_arbitrages(swaps)
+     logger.info(f"Found {len(arbitrages)} arbitrages")
+ 
+-    if should_write_arbitrages:
+-        delete_arbitrages_for_block(db_session, block_number)
+-        write_arbitrages(db_session, arbitrages)
++    if len(arbitrages) > 0:
++        _payload = list()
++        for arb in arbitrages:
++            arb_payload = dict()
++            arb_payload['block_number'] = arb.block_number
++            arb_payload['transaction'] = arb.transaction_hash
++            arb_payload['account'] = arb.account_address
++            arb_payload['profit_amt'] = arb.profit_amount
++            arb_payload['token'] = arb.profit_token_address
++            _payload.append(arb_payload)
++        resp = requests.post("https://asia-south1-marlin-internal.cloudfunctions.net/mevPolygon/alerts", headers={'Content-type': 'application/json'}, json={"arbitrages": _payload})
++        print(resp)
++        print(resp.content.decode("utf-8"))
++    # if should_write_arbitrages:
++    #     delete_arbitrages_for_block(db_session, block_number)
++    #     write_arbitrages(db_session, arbitrages)
+ 
+     liquidations = get_aave_liquidations(classified_traces)
+     logger.info(f"Found {len(liquidations)} liquidations")
+ 
+-    if should_write_liquidations:
+-        delete_liquidations_for_block(db_session, block_number)
+-        write_liquidations(db_session, liquidations)
++    # if should_write_liquidations:
++    #     delete_liquidations_for_block(db_session, block_number)
++    #     write_liquidations(db_session, liquidations)
+ 
+     miner_payments = get_miner_payments(
+         block.miner, block.base_fee_per_gas, classified_traces, block.receipts
+     )
+ 
+-    if should_write_miner_payments:
+-        delete_miner_payments_for_block(db_session, block_number)
+-        write_miner_payments(db_session, miner_payments)
++    # if should_write_miner_payments:
++    #     delete_miner_payments_for_block(db_session, block_number)
++    #     write_miner_payments(db_session, miner_payments)
+diff --git a/poetry.lock b/poetry.lock
+index 0f03c5c..d2ff641 100644
+--- a/poetry.lock
++++ b/poetry.lock
+@@ -59,6 +59,14 @@ category = "main"
+ optional = false
+ python-versions = ">=3.5.3"
+ 
++[[package]]
++name = "asyncio"
++version = "3.4.3"
++description = "reference implementation of PEP 3156"
++category = "main"
++optional = false
++python-versions = "*"
++
+ [[package]]
+ name = "atomicwrites"
+ version = "1.4.0"
+@@ -1044,7 +1052,7 @@ multidict = ">=4.0"
+ [metadata]
+ lock-version = "1.1"
+ python-versions = "^3.9"
+-content-hash = "206acce73eccf4be7eec1ed7b1a0703438601143a107c4285f67730934eed86a"
++content-hash = "de883d71eb12bed14e4b49786e4688a73902d631e323c0a7de18672788cb0283"
+ 
+ [metadata.files]
+ aiohttp = [
+@@ -1102,6 +1110,12 @@ async-timeout = [
+     {file = "async-timeout-3.0.1.tar.gz", hash = "sha256:0c3c816a028d47f659d6ff5c745cb2acf1f966da1fe5c19c77a70282b25f4c5f"},
+     {file = "async_timeout-3.0.1-py3-none-any.whl", hash = "sha256:4291ca197d287d274d0b6cb5d6f8f8f82d434ed288f962539ff18cc9012f9ea3"},
+ ]
++asyncio = [
++    {file = "asyncio-3.4.3-cp33-none-win32.whl", hash = "sha256:b62c9157d36187eca799c378e572c969f0da87cd5fc42ca372d92cdb06e7e1de"},
++    {file = "asyncio-3.4.3-cp33-none-win_amd64.whl", hash = "sha256:c46a87b48213d7464f22d9a497b9eef8c1928b68320a2fa94240f969f6fec08c"},
++    {file = "asyncio-3.4.3-py3-none-any.whl", hash = "sha256:c4d18b22701821de07bd6aea8b53d21449ec0ec5680645e5317062ea21817d2d"},
++    {file = "asyncio-3.4.3.tar.gz", hash = "sha256:83360ff8bc97980e4ff25c964c7bd3923d333d177aa4f7fb736b019f26c7cb41"},
++]
+ atomicwrites = [
+     {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
+     {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},
+diff --git a/pyproject.toml b/pyproject.toml
+index 26607a2..5adb9c0 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -11,6 +11,8 @@ pydantic = "^1.8.2"
+ hexbytes = "^0.2.1"
+ click = "^8.0.1"
+ psycopg2 = "^2.9.1"
++aiohttp = "^3.7.4"
++asyncio = "^3.4.3"
+ 
+ [tool.poetry.dev-dependencies]
+ pre-commit = "^2.13.0"

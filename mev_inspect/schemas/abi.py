@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import List, Optional, Union
+from typing import List, Union
 from typing_extensions import Literal
 
-import eth_utils.abi
+from hexbytes import HexBytes
 from pydantic import BaseModel
 from web3 import Web3
 
@@ -26,10 +26,6 @@ NON_FUNCTION_DESCRIPTION_TYPES = Union[
 class ABIDescriptionInput(BaseModel):
     name: str
     type: str
-    components: Optional[List["ABIDescriptionInput"]]
-
-
-ABIDescriptionInput.update_forward_refs()
 
 
 class ABIGenericDescription(BaseModel):
@@ -41,17 +37,12 @@ class ABIFunctionDescription(BaseModel):
     name: str
     inputs: List[ABIDescriptionInput]
 
-    def get_selector(self) -> str:
+    def get_selector(self) -> HexBytes:
         signature = self.get_signature()
-        return Web3.sha3(text=signature)[0:4].hex()
+        return Web3.sha3(text=signature)[0:4]
 
     def get_signature(self) -> str:
-        joined_input_types = ",".join(
-            input.type
-            if input.type != "tuple"
-            else eth_utils.abi.collapse_if_tuple(input.dict())
-            for input in self.inputs
-        )
+        joined_input_types = ",".join(input.type for input in self.inputs)
         return f"{self.name}({joined_input_types})"
 
 
