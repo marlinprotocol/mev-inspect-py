@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from sqlalchemy import orm
 from web3 import Web3
+from web3.exceptions import ContractLogicError
 
 from mev_inspect.fees import fetch_base_fee_per_gas
 from mev_inspect.schemas.blocks import Block
@@ -113,6 +114,14 @@ def parse_token(w3, token):
     return "0x" + w3.toHex(token)[26:]
 
 
+async def get_token(w3, addr, tokenId):
+    try:
+        token = await w3.eth.call({"to": addr, "data": "0x82b86600" + tokenId})
+    except ContractLogicError:
+        token = await w3.eth.call({"to": addr, "data": "0xc6610657" + tokenId})
+    return token
+
+
 async def classify_logs(logs, reserves, w3):
     cswaps = []
     cliquidations = []
@@ -220,8 +229,8 @@ async def classify_logs(logs, reserves, w3):
             if soldToken is None and boughtToken is None:
                 addr = Web3.toChecksumAddress(pool_address)
                 soldToken, boughtToken = await asyncio.gather(
-                    w3.eth.call({"to": addr, "data": "0x82b86600" + soldId}),
-                    w3.eth.call({"to": addr, "data": "0x82b86600" + boughtId}),
+                    get_token(w3, addr, soldId),
+                    get_token(w3, addr, boughtId),
                 )
                 soldToken = parse_token(w3, soldToken)
                 boughtToken = parse_token(w3, boughtToken)
@@ -241,9 +250,7 @@ async def classify_logs(logs, reserves, w3):
                 )
             elif soldToken is None:
                 addr = Web3.toChecksumAddress(pool_address)
-                soldToken = await w3.eth.call(
-                    {"to": addr, "data": "0x82b86600" + soldId}
-                )
+                soldToken = await get_token(w3, addr, soldId)
                 soldToken = parse_token(w3, soldToken)
                 reserves[soldKey] = soldToken
                 new_synapse_reserves.append(
@@ -254,9 +261,7 @@ async def classify_logs(logs, reserves, w3):
                 )
             elif boughtToken is None:
                 addr = Web3.toChecksumAddress(pool_address)
-                boughtToken = await w3.eth.call(
-                    {"to": addr, "data": "0x82b86600" + boughtId}
-                )
+                boughtToken = await get_token(w3, addr, boughtId)
                 boughtToken = parse_token(w3, boughtToken)
                 reserves[boughtKey] = boughtToken
                 new_synapse_reserves.append(
