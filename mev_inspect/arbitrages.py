@@ -5,7 +5,7 @@ from mev_inspect.schemas.arbitrages import Arbitrage
 from mev_inspect.schemas.swaps import Swap
 from mev_inspect.utils import equal_within_percent
 
-MAX_TOKEN_AMOUNT_PERCENT_DIFFERENCE = 0.00001
+MAX_TOKEN_AMOUNT_PERCENT_DIFFERENCE = 0.0025
 
 
 def get_arbitrages(swaps: List[Swap]) -> List[Arbitrage]:
