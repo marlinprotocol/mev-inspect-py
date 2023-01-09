@@ -10,7 +10,12 @@ from mev_inspect.block import get_classified_traces_from_events
 from mev_inspect.classifiers.trace import TraceClassifier
 from mev_inspect.crud.arbitrages import write_arbitrages
 from mev_inspect.crud.liquidations import write_liquidations
-from mev_inspect.crud.reserves import get_reserves, set_reserves
+from mev_inspect.crud.reserves import (
+    get_reserves,
+    get_synapse_reserves,
+    set_reserves,
+    set_synapse_reserves,
+)
 from mev_inspect.crud.swaps import write_swaps
 from mev_inspect.schemas.arbitrages import Arbitrage
 from mev_inspect.schemas.liquidations import Liquidation
@@ -53,17 +58,22 @@ async def inspect_many_blocks(
     _, _, _ = trace_classifier, trace_db_session, should_write_classified_traces
     for row in get_reserves(inspect_db_session).fetchall():
         reserves[row[0]] = (row[1], row[2])
+    for row in get_synapse_reserves(inspect_db_session).fetchall():
+        reserves[row[0]] = row[1]
 
     all_swaps: List[Swap] = []
     all_arbitrages: List[Arbitrage] = []
     all_liquidations: List[Liquidation] = []
 
-    async for swaps, liquidations, new_reserves in get_classified_traces_from_events(
+    async for swaps, liquidations, new_reserves, new_synapse_reserves in get_classified_traces_from_events(
         w3, after_block_number, before_block_number, reserves
     ):
         arbitrages = get_arbitrages(swaps)
+
         if len(new_reserves) > 0:
             set_reserves(inspect_db_session, new_reserves)
+        if len(new_synapse_reserves) > 0:
+            set_synapse_reserves(inspect_db_session, new_synapse_reserves)
 
         all_swaps.extend(swaps)
         all_arbitrages.extend(arbitrages)

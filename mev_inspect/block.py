@@ -117,6 +117,7 @@ async def classify_logs(logs, reserves, w3):
     cswaps = []
     cliquidations = []
     new_reserves = []
+    new_synapse_reserves = []
 
     topic_swap_v2 = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
     topic_swap_v3 = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
@@ -207,9 +208,16 @@ async def classify_logs(logs, reserves, w3):
 
             sold, bought, soldId, boughtId = get_swap_synapse(parse_data(log))
 
-            if pool_address in reserves:
-                pass  # TODO
-            else:
+            soldKey = pool_address + soldId[32:]
+            boughtKey = pool_address + boughtId[32:]
+
+            soldToken, boughtToken = None, None
+            if soldKey in reserves:
+                soldToken = reserves[soldKey]
+            if boughtKey in reserves:
+                boughtToken = reserves[boughtKey]
+
+            if soldToken is None and boughtToken is None:
                 addr = Web3.toChecksumAddress(pool_address)
                 soldToken, boughtToken = await asyncio.gather(
                     w3.eth.call({"to": addr, "data": "0x82b86600" + soldId}),
@@ -217,15 +225,46 @@ async def classify_logs(logs, reserves, w3):
                 )
                 soldToken = parse_token(w3, soldToken)
                 boughtToken = parse_token(w3, boughtToken)
-                # reserves[pool_address] = (token0, token1)
-                # new_reserves.append(
-                #     {
-                #         "pool_address": pool_address,
-                #         "token0": token0,
-                #         "token1": token1
-                #     }
-                # )
-
+                reserves[soldKey] = soldToken
+                reserves[boughtKey] = boughtToken
+                new_synapse_reserves.extend(
+                    [
+                        {
+                            "pool_address_index": soldKey,
+                            "token": soldToken,
+                        },
+                        {
+                            "pool_address_index": boughtKey,
+                            "token": boughtToken,
+                        },
+                    ]
+                )
+            elif soldToken is None:
+                addr = Web3.toChecksumAddress(pool_address)
+                soldToken = await w3.eth.call(
+                    {"to": addr, "data": "0x82b86600" + soldId}
+                )
+                soldToken = parse_token(w3, soldToken)
+                reserves[soldKey] = soldToken
+                new_synapse_reserves.append(
+                    {
+                        "pool_address_index": soldKey,
+                        "token": soldToken,
+                    }
+                )
+            elif boughtToken is None:
+                addr = Web3.toChecksumAddress(pool_address)
+                boughtToken = await w3.eth.call(
+                    {"to": addr, "data": "0x82b86600" + boughtId}
+                )
+                boughtToken = parse_token(w3, boughtToken)
+                reserves[boughtKey] = boughtToken
+                new_synapse_reserves.append(
+                    {
+                        "pool_address_index": boughtKey,
+                        "token": boughtToken,
+                    }
+                )
             swap = Swap(
                 abi_name="synapse",
                 transaction_hash=transaction_hash,
@@ -260,7 +299,7 @@ async def classify_logs(logs, reserves, w3):
             )
             cliquidations.append(liquidation)
 
-    return cswaps, cliquidations, new_reserves
+    return cswaps, cliquidations, new_reserves, new_synapse_reserves
 
 
 async def get_classified_traces_from_events(w3, after_block, before_block, reserves):
