@@ -6,7 +6,6 @@ from sqlalchemy import orm
 from web3 import Web3
 
 from mev_inspect.arbitrages import get_arbitrages
-from mev_inspect.block import get_classified_traces_from_events
 from mev_inspect.classifiers.trace import TraceClassifier
 from mev_inspect.crud.arbitrages import write_arbitrages
 from mev_inspect.crud.liquidations import write_liquidations
@@ -17,6 +16,7 @@ from mev_inspect.crud.reserves import (
     set_synapse_reserves,
 )
 from mev_inspect.crud.swaps import write_swaps
+from mev_inspect.events.classifier import get_classified_traces_from_events
 from mev_inspect.schemas.arbitrages import Arbitrage
 from mev_inspect.schemas.liquidations import Liquidation
 from mev_inspect.schemas.swaps import Swap
