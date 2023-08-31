@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 
 from mev_inspect.schemas.traces import (
     Classification,
@@ -20,6 +20,7 @@ def make_transfer_trace(
 ):
     return DecodedCallTrace(
         transaction_hash=transaction_hash,
+        transaction_position=0,
         block_number=block_number,
         type=TraceType.call,
         trace_address=trace_address,
@@ -47,12 +48,13 @@ def make_swap_trace(
     contract_address: str,
     abi_name: str,
     function_signature: str,
-    protocol: Optional[Protocol],
+    protocol: Protocol,
     recipient_address: str,
     recipient_input_key: str,
 ):
     return DecodedCallTrace(
         transaction_hash=transaction_hash,
+        transaction_position=0,
         block_number=block_number,
         type=TraceType.call,
         trace_address=trace_address,
@@ -78,6 +80,7 @@ def make_unknown_trace(
     return ClassifiedTrace(
         block_number=block_number,
         transaction_hash=transaction_hash,
+        transaction_position=0,
         trace_address=trace_address,
         action={},
         subtraces=0,

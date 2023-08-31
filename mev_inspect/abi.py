@@ -7,7 +7,6 @@ from pydantic import parse_obj_as
 from mev_inspect.schemas.abi import ABI
 from mev_inspect.schemas.traces import Protocol
 
-
 THIS_FILE_DIRECTORY = Path(__file__).parents[0]
 ABI_DIRECTORY_PATH = THIS_FILE_DIRECTORY / "abis"
 

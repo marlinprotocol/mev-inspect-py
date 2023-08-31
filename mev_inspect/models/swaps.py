@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Numeric, String, ARRAY, Integer
+from sqlalchemy import ARRAY, Column, Integer, Numeric, String
 
 from .base import Base
 
@@ -8,6 +8,7 @@ class SwapModel(Base):
 
     abi_name = Column(String, nullable=False)
     transaction_hash = Column(String, primary_key=True)
+    transaction_position = Column(Numeric, nullable=True)
     block_number = Column(Numeric, nullable=False)
     trace_address = Column(ARRAY(Integer), nullable=False)
     protocol = Column(String, nullable=True)

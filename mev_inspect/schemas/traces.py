@@ -31,6 +31,9 @@ class Classification(Enum):
     transfer = "transfer"
     liquidate = "liquidate"
     seize = "seize"
+    punk_bid = "punk_bid"
+    punk_accept_bid = "punk_accept_bid"
+    nft_trade = "nft_trade"
 
 
 class Protocol(Enum):
@@ -44,6 +47,9 @@ class Protocol(Enum):
     balancer_v1 = "balancer_v1"
     compound_v2 = "compound_v2"
     cream = "cream"
+    cryptopunks = "cryptopunks"
+    bancor = "bancor"
+    opensea = "opensea"
 
 
 class ClassifiedTrace(Trace):
@@ -54,6 +60,7 @@ class ClassifiedTrace(Trace):
     value: Optional[int]
     gas_used: Optional[int]
     transaction_hash: str
+    transaction_position: int
     protocol: Optional[Protocol]
     function_name: Optional[str]
     function_signature: Optional[str]

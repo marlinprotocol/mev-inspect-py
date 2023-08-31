@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Numeric, String, ARRAY, Integer
+from sqlalchemy import ARRAY, Column, Integer, Numeric, String
 
 from .base import Base
 
@@ -8,7 +8,6 @@ class LiquidationModel(Base):
 
     liquidated_user = Column(String, nullable=False)
     liquidator_user = Column(String, nullable=False)
-    collateral_token_address = Column(String, nullable=False)
     debt_token_address = Column(String, nullable=False)
     debt_purchase_amount = Column(Numeric, nullable=False)
     received_amount = Column(Numeric, nullable=False)
@@ -17,3 +16,4 @@ class LiquidationModel(Base):
     transaction_hash = Column(String, primary_key=True)
     trace_address = Column(ARRAY(Integer), primary_key=True)
     block_number = Column(Numeric, nullable=False)
+    error = Column(String, nullable=True)

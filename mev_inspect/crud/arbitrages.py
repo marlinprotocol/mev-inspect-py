@@ -4,17 +4,20 @@ from uuid import uuid4
 from mev_inspect.models.arbitrages import ArbitrageModel
 from mev_inspect.schemas.arbitrages import Arbitrage
 
+from .shared import delete_by_block_range
 
-def delete_arbitrages_for_block(
+
+def delete_arbitrages_for_blocks(
     db_session,
-    block_number: int,
+    after_block_number: int,
+    before_block_number: int,
 ) -> None:
-    (
-        db_session.query(ArbitrageModel)
-        .filter(ArbitrageModel.block_number == block_number)
-        .delete()
+    delete_by_block_range(
+        db_session,
+        ArbitrageModel,
+        after_block_number,
+        before_block_number,
     )
-
     db_session.commit()
 
 
@@ -37,6 +40,12 @@ def write_arbitrages(
                 start_amount=arbitrage.start_amount,
                 end_amount=arbitrage.end_amount,
                 profit_amount=arbitrage.profit_amount,
+                error=arbitrage.error,
+                protocols={
+                    swap.protocol.value
+                    for swap in arbitrage.swaps
+                    if swap.protocol is not None
+                },
             )
         )
 
@@ -61,4 +70,4 @@ def write_arbitrages(
             params=swap_arbitrage_ids,
         )
 
-        db_session.commit()
+        # db_session.commit()

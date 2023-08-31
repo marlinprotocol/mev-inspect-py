@@ -1,15 +1,10 @@
-from typing import Optional, List
-from mev_inspect.schemas.transfers import Transfer
+from typing import List, Optional
+
+from mev_inspect.classifiers.helpers import create_swap_from_pool_transfers
+from mev_inspect.schemas.classifiers import ClassifierSpec, SwapClassifier
 from mev_inspect.schemas.swaps import Swap
-from mev_inspect.schemas.traces import (
-    DecodedCallTrace,
-    Protocol,
-)
-from mev_inspect.schemas.classifiers import (
-    ClassifierSpec,
-    SwapClassifier,
-)
-from mev_inspect.classifiers.helpers import create_swap_from_transfers
+from mev_inspect.schemas.traces import DecodedCallTrace, Protocol
+from mev_inspect.schemas.transfers import Transfer
 
 BALANCER_V1_POOL_ABI_NAME = "BPool"
 
@@ -24,7 +19,7 @@ class BalancerSwapClassifier(SwapClassifier):
 
         recipient_address = trace.from_address
 
-        swap = create_swap_from_transfers(
+        swap = create_swap_from_pool_transfers(
             trace, recipient_address, prior_transfers, child_transfers
         )
         return swap

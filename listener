@@ -3,9 +3,9 @@
 set -e
 
 NAME=listener
-PIDFILE=/var/run/$NAME.pid
-DAEMON=/root/.poetry/bin/poetry
-DAEMON_OPTS="run python listener.py"
+PIDFILE=/home/flashbot/$NAME.pid
+DAEMON=/bin/bash
+DAEMON_OPTS='-c "poetry run python listener.py"'
 
 case "$1" in
   start)
@@ -13,16 +13,18 @@ case "$1" in
 	start-stop-daemon \
         --background \
         --chdir /app \
+        --chuid flashbot \
         --start \
         --quiet \
         --pidfile $PIDFILE \
         --make-pidfile \
-        --startas $DAEMON -- $DAEMON_OPTS
+        --startas /bin/bash -- -c "poetry run python listener.py"
         echo "."
 	;;
   stop)
         echo -n "Stopping daemon: "$NAME
 	start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+    rm $PIDFILE
         echo "."
 	;;
   tail)
@@ -31,14 +33,16 @@ case "$1" in
   restart)
         echo -n "Restarting daemon: "$NAME
 	start-stop-daemon --stop --quiet --oknodo --retry 30 --pidfile $PIDFILE
+    rm $PIDFILE
 	start-stop-daemon \
         --background \
         --chdir /app \
+        --chuid flashbot \
         --start \
         --quiet \
         --pidfile $PIDFILE \
         --make-pidfile \
-        --startas $DAEMON -- $DAEMON_OPTS
+        --startas /bin/bash -- -c "poetry run python listener.py"
         echo "."
     ;;
 
