@@ -27,18 +27,21 @@ async def _classify_logs(logs, reserves, w3):
     new_synapse_reserves = []
 
     for log in logs:
-        if parse_topic(log, 0) == UNISWAP_V2:
-            swap = await get_uniswap_v2(log, w3, reserves, new_reserves)
-            cswaps.append(swap)
-        elif parse_topic(log, 0) == UNISWAP_V3:
-            swap = await get_uniswap_v3(log, w3, reserves, new_reserves)
-            cswaps.append(swap)
-        elif parse_topic(log, 0) == SYNAPSE:
-            swap = await get_synapse(log, w3, reserves, new_synapse_reserves)
-            cswaps.append(swap)
-        elif parse_topic(log, 0) == AAVE:
-            liquidation = get_aave(log)
-            cliquidations.append(liquidation)
+        try:
+            if parse_topic(log, 0) == UNISWAP_V2:
+                swap = await get_uniswap_v2(log, w3, reserves, new_reserves)
+                cswaps.append(swap)
+            elif parse_topic(log, 0) == UNISWAP_V3:
+                swap = await get_uniswap_v3(log, w3, reserves, new_reserves)
+                cswaps.append(swap)
+            elif parse_topic(log, 0) == SYNAPSE:
+                swap = await get_synapse(log, w3, reserves, new_synapse_reserves)
+                cswaps.append(swap)
+            elif parse_topic(log, 0) == AAVE:
+                liquidation = get_aave(log)
+                cliquidations.append(liquidation)
+        except Exception as e:
+            logger.error(f"Error processing log with topic {parse_topic(log, 0)}: {str(e)}")
 
     return cswaps, cliquidations, new_reserves, new_synapse_reserves
 
